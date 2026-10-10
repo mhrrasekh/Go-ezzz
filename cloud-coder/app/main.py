@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import hmac
 import json
-import os
-import secrets
 import time
 import uuid
 from typing import Any
@@ -63,6 +61,8 @@ def require_token(authorization: str | None = Header(default=None)) -> None:
 
 @app.middleware("http")
 async def request_size_guard(request: Request, call_next):
+    # Content-Length is checked before FastAPI parses the request body.
+    # Chunked requests without Content-Length are not rejected by this guard.
     content_length = request.headers.get("content-length")
     if content_length:
         try:
@@ -93,8 +93,6 @@ async def chat_completions(body: ChatRequest):
         raise HTTPException(status_code=501, detail="Streaming is not enabled in this MVP.")
     if not settings.upstream_base_url.startswith(("http://", "https://")):
         raise HTTPException(status_code=503, detail="Upstream endpoint is not configured.")
-    if not body.messages:
-        raise HTTPException(status_code=422, detail="At least one message is required.")
 
     headers = {"Content-Type": "application/json"}
     if settings.upstream_api_key:
@@ -135,8 +133,10 @@ async def chat_completions(body: ChatRequest):
         raise HTTPException(status_code=502, detail=f"Model endpoint returned HTTP {upstream.status_code}.")
     try:
         result = upstream.json()
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, ValueError) as exc:
         raise HTTPException(status_code=502, detail="Model endpoint returned invalid JSON.") from exc
+    if not isinstance(result, dict):
+        raise HTTPException(status_code=502, detail="Model endpoint returned an invalid response shape.")
 
     result.setdefault("id", "chatcmpl-" + uuid.uuid4().hex)
     result.setdefault("object", "chat.completion")
