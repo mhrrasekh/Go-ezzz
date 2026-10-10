@@ -1,0 +1,35 @@
+name: Cloud Coder CI
+
+on:
+  push:
+    paths:
+      - "cloud-coder/**"
+      - ".github/workflows/cloud-coder-ci.yml"
+  pull_request:
+    paths:
+      - "cloud-coder/**"
+      - ".github/workflows/cloud-coder-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloud-coder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cloud-coder/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run tests
+        run: python -m pytest -q
