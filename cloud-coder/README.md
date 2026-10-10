@@ -1,29 +1,32 @@
 # My Private Cloud Coder
 
-A private, OpenAI-compatible gateway for a coding-focused open model served by an OpenAI-compatible inference engine (for example, vLLM). It adds a private bearer token and a coding-oriented system prompt so compatible clients can use the endpoint.
+A private, OpenAI-compatible gateway for coding models. It adds a private bearer token and a coding-oriented system prompt so compatible clients can use an authorized model provider through one endpoint.
 
-## Important truth about hosting
+## Important hosting and billing facts
 
-This repository does **not** include model weights and does not create compute on OpenAI/ChatGPT servers. It is deployable source code. To run a real model, you need a server you control or an authorized inference endpoint. A GPU host sized for the chosen model may incur costs; this is not automatically free. No API key or real secret should be committed to Git.
+This repository does **not** provide private access to OpenAI's internal ChatGPT servers and does not create compute on OpenAI infrastructure. It can call the official OpenAI API with your own API key, or an authorized OpenAI-compatible inference endpoint. API usage is billed separately from a ChatGPT subscription; check your API billing and limits before use. Never commit real API keys or secrets to Git.
 
-## Quick start
+## Quick start with the official OpenAI API
 
 1. Copy `.env.example` to `.env`.
-2. Set `ACCESS_TOKEN` to a random secret of at least 32 characters.
-3. Set `UPSTREAM_BASE_URL` and `UPSTREAM_MODEL` to your OpenAI-compatible inference endpoint and model ID.
-4. If the upstream requires authentication, set `UPSTREAM_API_KEY` in the local `.env` file.
-5. Run `docker compose up --build -d`.
-6. The gateway binds to `127.0.0.1:8000` by default. Put it behind HTTPS and an authenticated reverse proxy before remote use.
+2. Create your own API key in the official OpenAI Platform and add it to `UPSTREAM_API_KEY` in the local `.env` file only.
+3. Set `UPSTREAM_BASE_URL=https://api.openai.com/v1`.
+4. The example model is `gpt-6-sol`, intended for complex coding and agentic workflows. If it is not enabled for your API project, choose a model your account can access.
+5. Replace `ACCESS_TOKEN` with a random secret of at least 32 characters.
+6. Run `docker compose up --build -d`.
+7. The gateway binds to `127.0.0.1:8000` by default. Put it behind HTTPS and an authenticated reverse proxy before remote use.
 
-Generate a token locally with PowerShell:
+Create a local access token with PowerShell:
 
 ```powershell
 [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 ```
 
-## Connecting an authorized model
+Official API docs: https://developers.openai.com/api/docs/models/all and https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create.
 
-The default model setting is `Qwen/Qwen3-Coder-30B-A3B-Instruct`, a coding-focused open-weight model. It is large: do not assume it will run on an ordinary CPU or small GPU. Check the model card and serving-engine requirements before renting hardware. The upstream must expose an OpenAI-compatible `/v1/chat/completions` endpoint.
+## Alternative: host an open-weight model
+
+You can instead set `UPSTREAM_BASE_URL` and `UPSTREAM_MODEL` to your own authorized OpenAI-compatible inference endpoint. The example open-weight model used in earlier versions was `Qwen/Qwen3-Coder-30B-A3B-Instruct`. It is large and may require a substantial GPU; hardware rental may cost money.
 
 Example vLLM command on a compatible GPU host (run separately from this gateway):
 
@@ -34,11 +37,11 @@ vllm serve Qwen/Qwen3-Coder-30B-A3B-Instruct \
   --served-model-name Qwen/Qwen3-Coder-30B-A3B-Instruct
 ```
 
-If the model runs on the same host, set `UPSTREAM_BASE_URL=http://host.docker.internal:8001/v1` where supported, or configure a shared Docker network and use the model service name. Do not expose the model server publicly without authentication and network controls. The command above is an example, not proof that the model can run on your current hardware.
+If the model runs on the same host, set `UPSTREAM_BASE_URL=http://host.docker.internal:8001/v1` where supported, or configure a shared Docker network and use the model service name. Do not expose the model server publicly without authentication and network controls.
 
-## OpenAI-compatible client
+## Connect a client
 
-Set the client's base URL to `http://127.0.0.1:8000/v1`, use the configured bearer token, and select the model returned by `GET /v1/models`.
+Set the client's base URL to `http://127.0.0.1:8000/v1`, use the configured `ACCESS_TOKEN` as the bearer token, and select the model returned by `GET /v1/models`.
 
 ## Security and limitations
 
@@ -51,4 +54,4 @@ Set the client's base URL to `http://127.0.0.1:8000/v1`, use the configured bear
 - Streaming, repository indexing, long-term project memory, file editing, terminal execution, autonomous agent loops, billing, rate limiting, and multi-user accounts are not implemented yet.
 - Do not expose this service directly to the public internet without HTTPS, request-rate limits, access controls, and operational monitoring.
 
-The current MVP is a gateway, not a newly trained foundation model. It does not yet act autonomously on code repositories.
+The current MVP is a gateway, not a newly trained foundation model. It does not yet act autonomously on code repositories, and no deployment or API call has been run from this change.
