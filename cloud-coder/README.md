@@ -21,24 +21,34 @@ Generate a token locally with PowerShell:
 [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 ```
 
+## Connecting an authorized model
+
+The default model setting is `Qwen/Qwen3-Coder-30B-A3B-Instruct`, a coding-focused open-weight model. It is large: do not assume it will run on an ordinary CPU or small GPU. Check the model card and serving-engine requirements before renting hardware. The upstream must expose an OpenAI-compatible `/v1/chat/completions` endpoint.
+
+Example vLLM command on a compatible GPU host (run separately from this gateway):
+
+```bash
+vllm serve Qwen/Qwen3-Coder-30B-A3B-Instruct \
+  --host 127.0.0.1 \
+  --port 8001 \
+  --served-model-name Qwen/Qwen3-Coder-30B-A3B-Instruct
+```
+
+If the model runs on the same host, set `UPSTREAM_BASE_URL=http://host.docker.internal:8001/v1` where supported, or configure a shared Docker network and use the model service name. Do not expose the model server publicly without authentication and network controls. The command above is an example, not proof that the model can run on your current hardware.
+
 ## OpenAI-compatible client
 
 Set the client's base URL to `http://127.0.0.1:8000/v1`, use the configured bearer token, and select the model returned by `GET /v1/models`.
 
-## Included
+## Security and limitations
 
-- Bearer-token authentication with constant-time comparison.
-- Request size limit, timeout, and restricted CORS origins.
-- Generic upstream error messages that avoid leaking provider response bodies.
-- Health endpoint that does not disclose configuration.
-- Docker deployment with loopback-only port binding and non-root runtime.
-- Basic auth and health tests.
+- Bearer-token authentication uses constant-time comparison.
+- The request-size guard checks `Content-Length`; chunked requests without that header are not yet bounded by this middleware.
+- Timeouts and generic upstream error messages reduce accidental disclosure of provider details.
+- CORS origins are configurable.
+- Docker uses loopback-only port binding, a non-root runtime, read-only root filesystem, and no-new-privileges.
+- GitHub Actions runs automated tests on changes under `cloud-coder/`.
+- Streaming, repository indexing, long-term project memory, file editing, terminal execution, autonomous agent loops, billing, rate limiting, and multi-user accounts are not implemented yet.
+- Do not expose this service directly to the public internet without HTTPS, request-rate limits, access controls, and operational monitoring.
 
-## Not implemented yet
-
-- Streaming responses.
-- Repository indexing or long-term project memory.
-- File editing, terminal execution, autonomous agent loops, billing, rate limiting, and multi-user accounts.
-- TLS/reverse proxy setup and production monitoring.
-
-Do not expose this service directly to the public internet without HTTPS, rate limiting, access controls, and operational monitoring. The current MVP is a gateway, not a newly trained foundation model.
+The current MVP is a gateway, not a newly trained foundation model. It does not yet act autonomously on code repositories.
